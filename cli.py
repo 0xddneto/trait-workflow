@@ -1,10 +1,11 @@
 """CLI para testar o fluxo sem host MCP.
 
 Exemplos:
-  py -3.12 cli.py create hidden --base base.png --paint paint.png --protected prot.png
+  py -3.12 cli.py create hidden --base base.png
   py -3.12 cli.py place hidden --image trait_rgba.png
-  py -3.12 cli.py from-flat hidden --image personagem_vestido.png
   py -3.12 cli.py qa hidden
+  py -3.12 cli.py visibility hidden --hidden
+  py -3.12 cli.py inspect hidden
   py -3.12 cli.py export hidden
   py -3.12 cli.py list
 """
@@ -26,29 +27,19 @@ def main():
     c = sub.add_parser("create")
     c.add_argument("name")
     c.add_argument("--base", required=True)
-    c.add_argument("--paint")
-    c.add_argument("--protected")
-
-    m = sub.add_parser("mask")
-    m.add_argument("name")
-    m.add_argument("--kind", choices=["paint", "protected"], required=True)
-    m.add_argument("--regions")
-    m.add_argument("--from-file")
 
     p = sub.add_parser("place")
     p.add_argument("name")
     p.add_argument("--image", required=True)
-    p.add_argument("-x", type=int, default=0)
-    p.add_argument("-y", type=int, default=0)
-    p.add_argument("--allow-resize", action="store_true")
 
-    f = sub.add_parser("from-flat")
-    f.add_argument("name")
-    f.add_argument("--image", required=True)
-    f.add_argument("--t0", type=int, default=12)
-    f.add_argument("--t1", type=int, default=40)
-    f.add_argument("--open-px", type=int, default=1)
-    f.add_argument("--feather", type=float, default=1.0)
+    v = sub.add_parser("visibility")
+    v.add_argument("name")
+    group = v.add_mutually_exclusive_group(required=True)
+    group.add_argument("--visible", action="store_true")
+    group.add_argument("--hidden", action="store_true")
+
+    i = sub.add_parser("inspect")
+    i.add_argument("name")
 
     q = sub.add_parser("qa")
     q.add_argument("name")
@@ -65,17 +56,13 @@ def main():
 
     a = ap.parse_args()
     if a.cmd == "create":
-        out = document.create(a.name, a.base, a.paint, a.protected)
-    elif a.cmd == "mask":
-        out = pipeline.op_build_mask(a.name, a.kind, regions=a.regions,
-                                     from_file=a.from_file)
+        out = document.create(a.name, a.base)
     elif a.cmd == "place":
-        out = pipeline.op_place_trait(a.name, a.image, x=a.x, y=a.y,
-                                      allow_resize=a.allow_resize)
-    elif a.cmd == "from-flat":
-        out = pipeline.op_extract_from_flat(a.name, a.image, t0=a.t0, t1=a.t1,
-                                            open_px=a.open_px,
-                                            feather=a.feather)
+        out = pipeline.op_place_trait(a.name, a.image)
+    elif a.cmd == "visibility":
+        out = pipeline.op_set_base_visibility(a.name, a.visible)
+    elif a.cmd == "inspect":
+        out = pipeline.op_inspect(a.name)
     elif a.cmd == "qa":
         out = pipeline.op_qa(a.name, order=a.order,
                              min_coverage_pct=a.min_coverage)

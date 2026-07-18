@@ -42,18 +42,16 @@ def op_build_mask(name, kind, regions=None, from_file=None):
     return {"mask": str(out), "active_area_pct": cov}
 
 
-def op_place_trait(name, image_path, x=0, y=0, allow_resize=False):
+def op_place_trait(name, image_path):
     """Coloca uma imagem RGBA transparente na camada 2, pixel a pixel."""
     meta = document.load(name)
     canvas = tuple(meta["canvas"])
     im = Image.open(image_path)
-    if "A" not in im.getbands():
+    if im.format != "PNG" or im.mode != "RGBA":
         raise ValueError(
-            "imagem sem canal alfa. Gere a trait com fundo transparente "
-            "(gpt-image-1: background='transparent', output_format='png') "
-            "ou, se so tiver o personagem vestido em imagem chapada, use "
-            "extract_trait_from_flat.")
-    im = im.convert("RGBA")
+            f"trait deve ser PNG RGBA nativo; recebido {im.format} {im.mode}"
+        )
+    im.load()
     a = np.asarray(im.getchannel("A"))
     opaque_pct = float((a > 250).mean()) * 100
     if opaque_pct > 97:
@@ -63,18 +61,12 @@ def op_place_trait(name, image_path, x=0, y=0, allow_resize=False):
             "extract_trait_from_flat.")
 
     if im.size != canvas:
-        if allow_resize:
-            im = im.resize(canvas, Image.LANCZOS)
-        elif im.size[0] <= canvas[0] and im.size[1] <= canvas[1]:
-            layer = Image.new("RGBA", canvas, (0, 0, 0, 0))
-            layer.paste(im, (int(x), int(y)))
-            im = layer
-        else:
-            raise ValueError(
-                f"imagem {im.size} maior que o canvas {canvas}. Gere no "
-                "tamanho do canvas ou passe allow_resize=true (com perda).")
+        raise ValueError(
+            f"trait {im.size} diferente do canvas travado {canvas}; "
+            "resize, padding e translacao sao proibidos"
+        )
 
-    document.set_trait(meta, im)
+    document.set_trait_file(meta, image_path)
     aa = np.asarray(im.getchannel("A"))
     return {
         "trait": str(meta["dir"] / "trait.png"),
@@ -82,6 +74,14 @@ def op_place_trait(name, image_path, x=0, y=0, allow_resize=False):
         "coverage_canvas_pct": round(float((aa > ALPHA_ON).mean()) * 100, 2),
         "next": "rode qa para validar e export_trait para finalizar",
     }
+
+
+def op_set_base_visibility(name, visible, order="over"):
+    return document.set_base_visibility(document.load(name), visible, order=order)
+
+
+def op_inspect(name):
+    return document.inspect(name)
 
 
 def op_extract_from_flat(name, image_path, t0=12, t1=40, open_px=1,
@@ -175,4 +175,5 @@ def op_export(name, dest=None, force=False, order="over"):
     document.write_ora_file(meta, order=order)
     shutil.copyfile(meta["dir"] / "document.ora", ora_out)
     return {"trait_png": str(trait_png), "ora": str(ora_out),
-            "qa_pass": bool(qa.get("pass"))}
+            "qa_pass": bool(qa.get("pass")),
+            "trait_sha256": document.file_sha256(trait_png)}

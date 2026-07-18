@@ -19,55 +19,35 @@ def _j(obj):
 
 
 @mcp.tool()
-def create_document(name: str, base_image: str,
-                    paint_mask: str = "", protected_mask: str = "") -> str:
+def create_document(name: str, base_image: str) -> str:
     """Cria o documento em camadas: camada 1 = base oficial (PNG RGBA,
-    travada), camada 2 = vazia. Gera document.ora (abre em Krita/GIMP).
-    Mascaras opcionais: paint (onde a trait PODE existir) e protected (onde
-    NUNCA pode: cabeca, maos...); podem ser criadas depois com build_mask."""
-    meta = document.create(name, base_image,
-                           paint_mask or None, protected_mask or None)
+    travada), camada 2 = vazia. Gera document.ora (abre em Krita/GIMP)."""
+    meta = document.create(name, base_image)
     return _j(meta)
 
 
 @mcp.tool()
-def build_mask(name: str, kind: str, regions_json: str = "",
-               from_file: str = "") -> str:
-    """Define a mascara 'paint' ou 'protected' do documento. regions_json:
-    lista de formas, ex. [{"shape":"base_alpha","grow":-2},
-    {"shape":"rect","mode":"subtract","xy":[300,0,720,470]},
-    {"shape":"file","path":"ref.png"}]. Alternativa: from_file com PNG pronto
-    (branco = ativo). Mascara e politica de design: onde a trait aprovada
-    pode existir nao pode estar em protected."""
-    out = pipeline.op_build_mask(name, kind,
-                                 regions=regions_json or None,
-                                 from_file=from_file or None)
-    return _j(out)
-
-
-@mcp.tool()
-def place_trait(name: str, image_path: str, x: int = 0, y: int = 0,
-                allow_resize: bool = False) -> str:
+def place_trait(name: str, image_path: str) -> str:
     """Coloca na camada 2 uma imagem RGBA TRANSPARENTE gerada por voce —
-    apenas a trait (roupa, item, aura...), sem a base, sem fundo. Com
-    gpt-image-1 use background='transparent' e output_format='png'. Os pixels
-    sao copiados como estao, sem retoque. Depois rode qa."""
-    out = pipeline.op_place_trait(name, image_path, x=x, y=y,
-                                  allow_resize=allow_resize)
+    apenas a trait (roupa, item, aura...), sem a base, sem fundo. O PNG e
+    copiado byte a byte, sem retoque. Depois rode qa."""
+    out = pipeline.op_place_trait(name, image_path)
     return _j(out)
 
 
 @mcp.tool()
-def extract_trait_from_flat(name: str, image_path: str, t0: int = 12,
-                            t1: int = 40, open_px: int = 1,
-                            feather: float = 1.0) -> str:
-    """FALLBACK quando so existe imagem CHAPADA do personagem ja vestido
-    (sem transparencia): separa a camada 2 por diferenca deterministica
-    contra a base travada (sem IA). Requer paint_mask. Ajuste t0/t1 se vazar
-    pele (suba) ou sumir detalhe (desca). Depois rode qa."""
-    out = pipeline.op_extract_from_flat(name, image_path, t0=t0, t1=t1,
-                                        open_px=open_px, feather=feather)
-    return _j(out)
+def inspect_document(name: str) -> str:
+    """Valida estrutura, tamanhos, modos, hashes, imutabilidade da base,
+    visibilidade e bytes das duas camadas dentro do ORA. Nao altera pixels."""
+    return _j(pipeline.op_inspect(name))
+
+
+@mcp.tool()
+def set_base_layer_visibility(name: str, visible: bool,
+                              order: str = "over") -> str:
+    """Mostra ou oculta somente a camada 1 no ORA. Confirma pelos hashes que
+    nenhum byte da camada 2 mudou."""
+    return _j(pipeline.op_set_base_visibility(name, visible, order=order))
 
 
 @mcp.tool()
