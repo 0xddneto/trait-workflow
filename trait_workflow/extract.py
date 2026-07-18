@@ -81,6 +81,17 @@ def compose(base, trait, order="over"):
     return canvas
 
 
+def on_checkerboard(trait, square=32):
+    """Trait sobre xadrez cinza — prova visual da transparencia."""
+    w, h = trait.size
+    yy, xx = np.mgrid[0:h, 0:w]
+    tone = np.where(((xx // square) + (yy // square)) % 2 == 1, 200, 150)
+    board = np.repeat(tone[..., None], 3, axis=2).astype(np.uint8)
+    bg = Image.fromarray(board, "RGB").convert("RGBA")
+    bg.alpha_composite(trait)
+    return bg.convert("RGB")
+
+
 def qa_overlay(base, trait, debug):
     """Composicao + tinta vermelha onde o gerador tentou invadir zona protegida."""
     over = compose(base, trait).convert("RGB")

@@ -1,9 +1,10 @@
-"""CLI para testar o pipeline sem host MCP.
+"""CLI para testar o fluxo sem host MCP.
 
 Exemplos:
   py -3.12 cli.py create hidden --base base.png --paint paint.png --protected prot.png
-  py -3.12 cli.py generate hidden --prompt "dark high-collar jacket..." --backend gemini
-  py -3.12 cli.py extract hidden
+  py -3.12 cli.py place hidden --image trait_rgba.png
+  py -3.12 cli.py from-flat hidden --image personagem_vestido.png
+  py -3.12 cli.py qa hidden
   py -3.12 cli.py export hidden
   py -3.12 cli.py list
 """
@@ -15,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from trait_workflow import pipeline, projects
+from trait_workflow import document, pipeline
 
 
 def main():
@@ -34,56 +35,55 @@ def main():
     m.add_argument("--regions")
     m.add_argument("--from-file")
 
-    ac = sub.add_parser("add-candidate")
-    ac.add_argument("name")
-    ac.add_argument("--image", required=True)
+    p = sub.add_parser("place")
+    p.add_argument("name")
+    p.add_argument("--image", required=True)
+    p.add_argument("-x", type=int, default=0)
+    p.add_argument("-y", type=int, default=0)
+    p.add_argument("--allow-resize", action="store_true")
 
-    g = sub.add_parser("generate")
-    g.add_argument("name")
-    g.add_argument("--prompt", required=True)
-    g.add_argument("--backend", default="gemini")
-    g.add_argument("--model")
-    g.add_argument("-n", type=int, default=1)
-    g.add_argument("--no-guard", action="store_true")
+    f = sub.add_parser("from-flat")
+    f.add_argument("name")
+    f.add_argument("--image", required=True)
+    f.add_argument("--t0", type=int, default=12)
+    f.add_argument("--t1", type=int, default=40)
+    f.add_argument("--open-px", type=int, default=1)
+    f.add_argument("--feather", type=float, default=1.0)
 
-    e = sub.add_parser("extract")
-    e.add_argument("name")
-    e.add_argument("--candidate", default="latest")
-    e.add_argument("--t0", type=int, default=12)
-    e.add_argument("--t1", type=int, default=40)
-    e.add_argument("--open-px", type=int, default=1)
-    e.add_argument("--feather", type=float, default=1.0)
-    e.add_argument("--order", default="over", choices=["over", "behind"])
+    q = sub.add_parser("qa")
+    q.add_argument("name")
+    q.add_argument("--order", default="over", choices=["over", "behind"])
+    q.add_argument("--min-coverage", type=float, default=1.0)
 
     x = sub.add_parser("export")
     x.add_argument("name")
-    x.add_argument("--candidate", default="latest")
     x.add_argument("--dest")
-    x.add_argument("--no-ora", action="store_true")
+    x.add_argument("--force", action="store_true")
     x.add_argument("--order", default="over", choices=["over", "behind"])
 
     sub.add_parser("list")
 
     a = ap.parse_args()
     if a.cmd == "create":
-        out = projects.create(a.name, a.base, a.paint, a.protected)
+        out = document.create(a.name, a.base, a.paint, a.protected)
     elif a.cmd == "mask":
         out = pipeline.op_build_mask(a.name, a.kind, regions=a.regions,
                                      from_file=a.from_file)
-    elif a.cmd == "add-candidate":
-        out = pipeline.op_add_candidate(a.name, a.image)
-    elif a.cmd == "generate":
-        out = pipeline.op_generate(a.name, a.prompt, backend=a.backend,
-                                   model=a.model, n=a.n, guard=not a.no_guard)
-    elif a.cmd == "extract":
-        out = pipeline.op_extract(a.name, a.candidate, t0=a.t0, t1=a.t1,
-                                  open_px=a.open_px, feather=a.feather,
-                                  order=a.order)
+    elif a.cmd == "place":
+        out = pipeline.op_place_trait(a.name, a.image, x=a.x, y=a.y,
+                                      allow_resize=a.allow_resize)
+    elif a.cmd == "from-flat":
+        out = pipeline.op_extract_from_flat(a.name, a.image, t0=a.t0, t1=a.t1,
+                                            open_px=a.open_px,
+                                            feather=a.feather)
+    elif a.cmd == "qa":
+        out = pipeline.op_qa(a.name, order=a.order,
+                             min_coverage_pct=a.min_coverage)
     elif a.cmd == "export":
-        out = pipeline.op_export(a.name, a.candidate, dest=a.dest,
-                                 write_ora=not a.no_ora, order=a.order)
+        out = pipeline.op_export(a.name, dest=a.dest, force=a.force,
+                                 order=a.order)
     elif a.cmd == "list":
-        out = projects.list_projects()
+        out = document.list_documents()
     print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
 
 
