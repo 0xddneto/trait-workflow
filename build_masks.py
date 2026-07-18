@@ -32,8 +32,12 @@ CANON = Path(r"C:/Nova pasta/DN/DEV/projeto MOBs/assets/base/masks_canonical")
 OUTLINE_THR = 110      # canal minimo abaixo disso = linha/sombra divisoria
 HEAD_ZONE_Y = 490      # celulas inteiramente acima disso sao cabeca/orelha
 HEAD_SOLID_Y = 430     # acima disso, TODO corpo e cabeca
+CHIN_Y = 480           # o queixo desce ate aqui, na largura da mandibula
+JAW_X = (412, 612)     # largura da mandibula (nao invade os ombros)
 WRIST_Y = 673          # linha do pulso (das mascaras aprovadas do workbench)
-HAND_SEEDS = [(340, 735), (700, 735)]
+HAND_SEEDS = [(340, 735), (350, 770), (330, 780),          # mao esquerda
+              (700, 735), (710, 770), (695, 790), (725, 760),
+              (668, 762), (684, 784)]                       # dedos internos dir.
 
 
 def build(base_path, out_dir):
@@ -54,16 +58,25 @@ def build(base_path, out_dir):
         if 50 <= ys.min() and ys.max() <= HEAD_ZONE_Y:
             cabeca |= comp
     yy = np.arange(body.shape[0])[:, None]
+    xx = np.arange(body.shape[1])[None, :]
     cabeca |= body & (yy <= HEAD_SOLID_Y)
+    # queixo ate o contorno, na largura da mandibula (ombros ficam livres)
+    cabeca |= body & (yy <= CHIN_Y) & (xx >= JAW_X[0]) & (xx <= JAW_X[1])
     cabeca = binary_fill_holes(binary_closing(cabeca, iterations=3))
 
-    maos = np.zeros_like(cells)
+    # mao inteira (dedos inclusos): propaga abaixo do pulso bloqueando so no
+    # contorno preto verdadeiro — o traco externo da mao e preto e separa do
+    # quadril/perna; as dobras dos dedos sao mais claras e deixam passar
+    strong = binary_dilation(body & (a[..., :3].min(axis=2) < 60),
+                             iterations=1)
+    abaixo_pulso = body & ~strong & (yy >= WRIST_Y)
+    maos = np.zeros_like(body)
     for x, y in HAND_SEEDS:
-        if cells[y, x]:
-            seed = np.zeros_like(cells)
+        if abaixo_pulso[y, x]:
+            seed = np.zeros_like(body)
             seed[y, x] = True
-            maos |= binary_propagation(seed, mask=cells)
-    maos &= yy >= WRIST_Y
+            maos |= binary_propagation(seed, mask=abaixo_pulso)
+    maos = binary_dilation(maos, iterations=3) & body & (yy >= WRIST_Y - 6)
 
     prot = binary_dilation(cabeca | maos, iterations=3) & body
     prot = binary_fill_holes(binary_closing(prot, iterations=2)) & body
