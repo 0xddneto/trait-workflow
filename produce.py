@@ -40,6 +40,9 @@ def main():
     ap.add_argument("--t0", type=int, default=5)
     ap.add_argument("--t1", type=int, default=16)
     ap.add_argument("--dest", help="pasta final (padrao: exports do documento)")
+    ap.add_argument("--stencil", action="store_true",
+                    help="o render veio do estencil (placeholders magenta): "
+                         "subtrai contra stencil.png em vez da base")
     a = ap.parse_args()
 
     passos = {}
@@ -58,7 +61,8 @@ def main():
     passos["mascaras"] = "canonicas aplicadas"
 
     # 3. remove a camada 1 (subtracao deterministica) e coloca na camada 2
-    info = forge(a.name, a.render, t0=a.t0, t1=a.t1)
+    against = str(CANON / "stencil.png") if a.stencil else None
+    info = forge(a.name, a.render, t0=a.t0, t1=a.t1, against=against)
     passos["forja"] = {k: info[k] for k in
                        ("bg_estimado", "registro", "coverage_pct")}
     passos["place"] = pipeline.op_place_trait(a.name, info["out"])

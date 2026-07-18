@@ -148,10 +148,18 @@ def decontaminate(trait, base_flat):
 
 def forge(doc_name, flat_path, out=None, do_register=True,
           do_decontaminate=True, t0=12, t1=40, open_px=1, feather=1.0,
-          pure=False):
+          pure=False, against=None):
+    """against: imagem de referencia para a subtracao (padrao: a base do
+    documento). Para renders de estencil, passe o stencil.png — tudo que o
+    gerador copiou do estencil (placeholders magenta, fundo) zera; so a
+    roupa pintada sobra."""
     meta = document.load(doc_name)
     canvas = tuple(meta["canvas"])
     base = document.base_image(meta)
+    if against:
+        base = Image.open(against).convert("RGBA")
+        if base.size != canvas:
+            base = base.resize(canvas, Image.LANCZOS)
     paint = document.get_mask(meta, "paint")
     if paint is None and not pure:
         raise RuntimeError(
