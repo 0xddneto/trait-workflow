@@ -92,6 +92,16 @@ def build(base_path, out_dir):
     arr = np.asarray(flat).copy()
     arr[prot] = (255, 0, 255)
     Image.fromarray(arr).save(out_dir / "stencil.png")
+
+    # stencil_full: manequim TODO magenta (ideia do dono) — nenhuma pele no
+    # quadro; o linework vira magenta-escuro para o motor ler a pose sem
+    # colidir com roupas pretas na subtracao
+    linework = body & (a[..., :3].min(axis=2) < 60)
+    arr2 = np.asarray(flat).copy()
+    arr2[body] = (255, 0, 255)
+    arr2[linework] = (192, 0, 192)
+    Image.fromarray(arr2).save(out_dir / "stencil_full.png")
+
     base.save(out_dir / "base_1024.png")
     return {"protected_pct": round(prot.mean() * 100, 1),
             "paint_pct": round(paint.mean() * 100, 1)}
