@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "trait-workflow": {
+      "command": "py",
+      "args": ["-3.12", "server.py"]
+    }
+  }
+}
